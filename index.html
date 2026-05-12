@@ -60,7 +60,26 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 .cell:hover{stroke:#fff;stroke-width:1.5px}
 .footer{text-align:center;padding:32px 24px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border);margin-top:24px}
 .footer a{color:#60a5fa;text-decoration:none}.footer a:hover{text-decoration:underline}
-@media(max-width:640px){.hero h1{font-size:1.8rem}.hero p{font-size:.9rem}.stat{min-width:120px;padding:10px 14px}.stat .value{font-size:1.3rem}.year-value{font-size:2.2rem}.tab-btn{padding:6px 14px;font-size:.78rem}.state-label{font-size:4.5px}.speed-ctrl{margin-left:0;width:100%}}
+.impl-intro{max-width:800px;margin:0 auto;padding:0 24px 36px;text-align:center}
+.impl-intro .big-num{font-size:4rem;font-weight:800;letter-spacing:-.04em;line-height:1;margin-bottom:8px}
+.impl-intro p{color:var(--muted);font-size:1rem;max-width:620px;margin:0 auto}
+.impl-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:20px;max-width:1200px;margin:0 auto;padding:0 24px 48px}
+.impl-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 26px;transition:border-color .2s,transform .2s}
+.impl-card:hover{border-color:#444;transform:translateY(-2px)}
+.impl-card .card-icon{font-size:1.6rem;margin-bottom:10px;display:block;line-height:1}
+.impl-card h3{font-size:1.1rem;font-weight:700;margin-bottom:8px;line-height:1.3}
+.impl-card p{font-size:.88rem;color:var(--muted);line-height:1.65}
+.impl-card .card-stat{display:inline-block;font-weight:700;font-variant-numeric:tabular-nums;margin-top:10px;padding:4px 10px;border-radius:6px;font-size:.82rem}
+.impl-card .card-stat.red{background:rgba(248,113,113,.12);color:#f87171}
+.impl-card .card-stat.blue{background:rgba(96,165,250,.12);color:#60a5fa}
+.impl-card .card-stat.yellow{background:rgba(251,191,36,.12);color:#fbbf24}
+.impl-source{font-size:.75rem;color:var(--muted);margin-top:2px}
+.impl-source a{color:#60a5fa;text-decoration:none}.impl-source a:hover{text-decoration:underline}
+.impl-cta{max-width:800px;margin:0 auto;padding:0 24px 48px;text-align:center}
+.impl-cta .cta-box{background:linear-gradient(135deg,rgba(96,165,250,.08),rgba(248,113,113,.08));border:1px solid var(--border);border-radius:16px;padding:36px 32px}
+.impl-cta h3{font-size:1.2rem;font-weight:700;margin-bottom:10px}
+.impl-cta p{color:var(--muted);font-size:.92rem;max-width:560px;margin:0 auto;line-height:1.7}
+@media(max-width:640px){.impl-grid{grid-template-columns:1fr}.impl-intro .big-num{font-size:2.8rem}.hero h1{font-size:1.8rem}.hero p{font-size:.9rem}.stat{min-width:120px;padding:10px 14px}.stat .value{font-size:1.3rem}.year-value{font-size:2.2rem}.tab-btn{padding:6px 14px;font-size:.78rem}.state-label{font-size:4.5px}.speed-ctrl{margin-left:0;width:100%}}
 </style>
 </head>
 <body>
@@ -72,6 +91,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   <button class="tab-btn active" data-tab="national">National Overview</button>
   <button class="tab-btn" data-tab="statemap">State Map</button>
   <button class="tab-btn" data-tab="co2">CO&#8322; Emissions</button>
+  <button class="tab-btn" data-tab="implications">What This Means</button>
 </nav>
 
 <!-- TAB 1: NATIONAL -->
@@ -134,6 +154,87 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   </div>
   <div class="section"><h2>Who's Responsible? Cumulative Emissions</h2><p class="subtitle">Historical cumulative CO&#8322; emissions matter most for climate change. India's total is a fraction of the US, EU, or China.</p>
     <div class="chart-box"><div id="co2-cumulative-container"></div></div>
+  </div>
+</div>
+
+<!-- TAB 4: IMPLICATIONS -->
+<div class="tab-content" id="tab-implications">
+  <div class="impl-intro">
+    <div class="big-num" style="background:linear-gradient(135deg,#fbbf24,#f87171);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">+1.2&#176;C</div>
+    <p>India has already warmed over 1&#176;C above pre-industrial levels. Even small increases in average temperature have outsized consequences for 1.4 billion people. Here is what the data means in practice.</p>
+  </div>
+
+  <div class="impl-grid">
+    <div class="impl-card">
+      <span class="card-icon">&#9728;&#65039;</span>
+      <h3>Deadly Heat Waves</h3>
+      <p>India experienced its longest recorded heat wave in 2024 at 40+ consecutive days. Heat-related mortality has risen sharply &mdash; extreme heat days (above 40&#176;C) have increased by over 55% since the 1980s. By 2050, over 600 million Indians could face regular lethal heat conditions.</p>
+      <span class="card-stat red">24,000+ heat deaths since 1992</span>
+      <div class="impl-source">Source: <a href="https://www.lancetcountdown.org/" target="_blank">Lancet Countdown 2024</a>, IMD records</div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#127806;</span>
+      <h3>Agriculture Under Threat</h3>
+      <p>Every 1&#176;C rise reduces wheat yields by 6&ndash;7% and rice yields by up to 10% in key growing regions. India's agricultural GDP &mdash; which supports ~42% of the workforce &mdash; faces losses of $15&ndash;25 billion per year by mid-century from heat stress, erratic monsoons, and soil degradation.</p>
+      <span class="card-stat yellow">6&ndash;7% wheat yield loss per 1&#176;C</span>
+      <div class="impl-source">Source: <a href="https://www.ipcc.ch/report/ar6/wg2/" target="_blank">IPCC AR6 WG2</a>, ICAR studies</div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#128167;</span>
+      <h3>Water Crisis</h3>
+      <p>Himalayan glaciers &mdash; the source of the Ganges, Indus, and Brahmaputra &mdash; have lost 40% of their area since the Little Ice Age and retreat is accelerating. Meanwhile, groundwater tables are falling in Punjab, Haryana, and Rajasthan. By 2030, India's water demand is projected to be twice the available supply.</p>
+      <span class="card-stat blue">40% Himalayan glacier area lost</span>
+      <div class="impl-source">Source: <a href="https://www.icimod.org/" target="_blank">ICIMOD Hindu Kush Himalaya Assessment</a></div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#127754;</span>
+      <h3>Monsoon Disruption</h3>
+      <p>Warming is making the Indian monsoon more erratic: dry spells are longer, but when rain comes, it is more intense. Extreme rainfall events over central India have tripled since 1950. This means more floods and more droughts in the same year &mdash; devastating for farmers who depend on predictable rain.</p>
+      <span class="card-stat red">3x increase in extreme rain events</span>
+      <div class="impl-source">Source: <a href="https://doi.org/10.1126/science.abn8120" target="_blank">Roxy et al., Science 2017</a></div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#127758;</span>
+      <h3>Sea Level Rise</h3>
+      <p>Sea levels along India's coast are rising at 1.7 mm/year, accelerating to 3.3 mm/year in recent decades. Mumbai, Chennai, and Kolkata &mdash; home to 46 million people &mdash; face significant flooding risk. A 1-metre rise by 2100 would submerge large parts of the Sundarbans, Kerala's coast, and Gujarat's low-lying areas.</p>
+      <span class="card-stat blue">3.3 mm/yr coastal sea level rise</span>
+      <div class="impl-source">Source: <a href="https://www.ipcc.ch/srocc/" target="_blank">IPCC Special Report on Oceans</a></div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#128176;</span>
+      <h3>Economic Cost</h3>
+      <p>India loses an estimated 5.4% of GDP to extreme weather and heat stress &mdash; among the highest in the world. Outdoor labour productivity has already dropped 15% since 2000 due to heat. By 2070, unmitigated warming could reduce India's GDP by 24&ndash;35% relative to a no-warming scenario.</p>
+      <span class="card-stat yellow">5.4% GDP lost to climate impacts</span>
+      <div class="impl-source">Source: <a href="https://www.rbi.org.in/" target="_blank">RBI Bulletin 2023</a>, Cambridge study</div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#129522;</span>
+      <h3>Health Impacts</h3>
+      <p>Rising heat increases vector-borne diseases: dengue transmission potential has risen 15% since the 1950s. Air pollution &mdash; worsened by heat-driven ozone formation &mdash; already causes 1.6 million deaths annually. Heat stroke, kidney disease in outdoor workers, and malnutrition from crop failures compound the burden on an overstretched healthcare system.</p>
+      <span class="card-stat red">1.6M air pollution deaths/year</span>
+      <div class="impl-source">Source: <a href="https://www.lancetcountdown.org/" target="_blank">Lancet Countdown</a>, GBD 2021</div>
+    </div>
+
+    <div class="impl-card">
+      <span class="card-icon">&#127961;&#65039;</span>
+      <h3>Urban Heat Islands</h3>
+      <p>Indian cities are 3&ndash;5&#176;C hotter than surrounding rural areas due to concrete, lost green cover, and waste heat. Delhi, Ahmedabad, and Nagpur regularly cross 47&#176;C. The urban poor &mdash; living in tin-roofed homes without cooling &mdash; bear the worst of it. India will need 1.1 billion cooling devices by 2037, creating a massive energy demand spiral.</p>
+      <span class="card-stat yellow">3&ndash;5&#176;C urban heat island effect</span>
+      <div class="impl-source">Source: <a href="https://www.teriin.org/" target="_blank">TERI</a>, India Cooling Action Plan</div>
+    </div>
+  </div>
+
+  <div class="impl-cta">
+    <div class="cta-box">
+      <h3>The Window Is Narrowing</h3>
+      <p>India's National Action Plan on Climate Change targets 50% non-fossil electricity by 2030 and net-zero by 2070. But current trajectories show emissions still rising. The data on this page isn't abstract &mdash; it's the lived reality of heat that kills, water that's disappearing, and food that's harder to grow. Every fraction of a degree matters.</p>
+    </div>
   </div>
 </div>
 
