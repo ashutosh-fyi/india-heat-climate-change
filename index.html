@@ -71,6 +71,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
 <nav class="tab-nav">
   <button class="tab-btn active" data-tab="national">National Overview</button>
   <button class="tab-btn" data-tab="statemap">State Map</button>
+  <button class="tab-btn" data-tab="co2">CO&#8322; Emissions</button>
 </nav>
 
 <!-- TAB 1: NATIONAL -->
@@ -116,15 +117,38 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
   </div>
 </div>
 
+<!-- TAB 3: CO2 EMISSIONS -->
+<div class="tab-content" id="tab-co2">
+  <div class="stats-bar" id="co2-stats-bar"></div>
+  <div class="section"><h2>India's CO&#8322; Emissions by Fuel Type</h2><p class="subtitle">Stacked area chart showing the breakdown of India's carbon emissions (MtCO&#8322;) since 1858.</p>
+    <div class="chart-box"><div id="co2-stacked-container"></div></div>
+  </div>
+  <div class="section"><h2>CO&#8322; Emissions vs Temperature Rise</h2><p class="subtitle">India's cumulative CO&#8322; emissions overlaid with temperature anomaly. The correlation is clear.</p>
+    <div class="chart-box"><div id="co2-temp-container"></div></div>
+  </div>
+  <div class="section"><h2>Per Capita Emissions: India vs the World</h2><p class="subtitle">Despite being the 3rd largest total emitter, India's per-capita emissions remain far below major economies.</p>
+    <div class="chart-box"><div id="co2-percapita-container"></div></div>
+  </div>
+  <div class="section"><h2>India's Share of Global Emissions</h2><p class="subtitle">India's contribution to global CO&#8322; has grown steadily but remains under 9%.</p>
+    <div class="chart-box"><div id="co2-share-container"></div></div>
+  </div>
+  <div class="section"><h2>Who's Responsible? Cumulative Emissions</h2><p class="subtitle">Historical cumulative CO&#8322; emissions matter most for climate change. India's total is a fraction of the US, EU, or China.</p>
+    <div class="chart-box"><div id="co2-cumulative-container"></div></div>
+  </div>
+</div>
+
 <div class="footer">
   Data: <a href="https://berkeleyearth.org/" target="_blank">Berkeley Earth</a> (national) &amp;
-  <a href="https://open-meteo.com/" target="_blank">Open-Meteo ERA5</a> (state-level)
+  <a href="https://open-meteo.com/" target="_blank">Open-Meteo ERA5</a> (state-level) &amp;
+  <a href="https://globalcarbonbudget.org/" target="_blank">Global Carbon Budget 2024</a> &amp;
+  <a href="https://ourworldindata.org/co2-emissions" target="_blank">Our World in Data</a> (CO&#8322;)
   &bull; Baseline: 1951-1980 (national), 1961-1990 (states)
 </div>
 <div class="tooltip" id="tooltip"></div>
 
 <script src="national_data_var.js"></script>
 <script src="state_data_var.js"></script>
+<script src="co2_data_var.js"></script>
 <script>
 (function(){
 'use strict';
@@ -218,6 +242,398 @@ document.addEventListener('keydown',function(e){if(document.getElementById('tab-
 var mc=document.getElementById('map-legend-canvas').getContext('2d'),gr=mc.createLinearGradient(0,0,280,0);for(var i=0;i<COLORS.length;i++)gr.addColorStop(i/(COLORS.length-1),COLORS[i]);mc.fillStyle=gr;mc.fillRect(0,0,280,14);
 updateMap(0);
 })();
+// ═══ CO2 EMISSIONS ═══
+(function(){
+var co2=CO2_DATA,india=co2.india,years=co2.years;
+var FUEL_COLORS={coal:'#e74c3c',oil:'#8e44ad',gas:'#3498db',cement:'#95a5a6',flaring:'#e67e22',other:'#2ecc71'};
+var FUEL_LABELS={coal:'Coal',oil:'Oil',gas:'Gas',cement:'Cement',flaring:'Flaring',other:'Other'};
+var FUELS=['coal','oil','gas','cement','flaring','other'];
+
+// Stats bar
+var latest=india[String(years[years.length-1])];
+var latestYr=years[years.length-1];
+var comp=co2.comparison;
+var shareLatest=co2.indiaShare[String(latestYr)]||co2.indiaShare[String(latestYr-1)]||'?';
+document.getElementById('co2-stats-bar').innerHTML=
+'<div class="stat"><div class="value neutral">'+latestYr+'</div><div class="label">Latest data</div></div>'+
+'<div class="stat"><div class="value warm">'+Math.round(latest.total).toLocaleString()+'</div><div class="label">MtCO\u2082 (total)</div></div>'+
+'<div class="stat"><div class="value cool">'+latest.perCapita.toFixed(1)+'</div><div class="label">tCO\u2082 per capita</div></div>'+
+'<div class="stat"><div class="value neutral">'+shareLatest+'%</div><div class="label">of global emissions</div></div>';
+
+// ── Stacked Area: CO2 by fuel ──
+(function(){
+var container=document.getElementById('co2-stacked-container');
+var margin={top:20,right:120,bottom:40,left:65},w=1100,h=380;
+var iW=w-margin.left-margin.right,iH=h-margin.top-margin.bottom;
+var svg=svgEl('svg',{viewBox:'0 0 '+w+' '+h});svg.style.maxWidth='100%';svg.style.height='auto';
+var g=svgEl('g',{transform:'translate('+margin.left+','+margin.top+')'});svg.appendChild(g);
+
+// filter years with data
+var yrs=years.filter(function(y){return india[String(y)]&&india[String(y)].total>0;});
+var xMin=yrs[0],xMax=yrs[yrs.length-1];
+// compute stacked values
+var stacked=yrs.map(function(yr){
+  var d=india[String(yr)],vals=[],cum=0;
+  FUELS.forEach(function(f){var v=d[f]||0;vals.push({fuel:f,y0:cum,y1:cum+v});cum+=v;});
+  return{year:yr,layers:vals,total:cum};
+});
+var yMax=Math.max.apply(null,stacked.map(function(s){return s.total;}))*1.05;
+function xS(v){return((v-xMin)/(xMax-xMin))*iW;}
+function yS(v){return iH-(v/yMax)*iH;}
+
+// draw each fuel layer
+FUELS.slice().reverse().forEach(function(fuel){
+  var path='';
+  // forward pass (top of layer)
+  for(var i=0;i<stacked.length;i++){
+    var s=stacked[i],layer=s.layers.filter(function(l){return l.fuel===fuel;})[0];
+    path+=(i===0?'M':'L')+xS(s.year).toFixed(1)+','+yS(layer.y1).toFixed(1);
+  }
+  // backward pass (bottom of layer)
+  for(var i=stacked.length-1;i>=0;i--){
+    var s=stacked[i],layer=s.layers.filter(function(l){return l.fuel===fuel;})[0];
+    path+='L'+xS(s.year).toFixed(1)+','+yS(layer.y0).toFixed(1);
+  }
+  path+='Z';
+  g.appendChild(svgEl('path',{d:path,fill:FUEL_COLORS[fuel],opacity:'0.85'}));
+});
+
+// y axis
+for(var v=0;v<=yMax;v+=500){
+  var y=yS(v);
+  g.appendChild(svgEl('line',{x1:0,y1:y,x2:iW,y2:y,stroke:'#27272a','stroke-width':0.5}));
+  var lb=svgEl('text',{x:-10,y:y+4,'text-anchor':'end',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  lb.textContent=v>=1000?(v/1000).toFixed(1)+'k':v;g.appendChild(lb);
+}
+var yLab=svgEl('text',{x:-50,y:iH/2,'text-anchor':'middle',fill:'#71717a','font-size':'11','font-family':'Inter,system-ui,sans-serif',transform:'rotate(-90,-50,'+iH/2+')'});
+yLab.textContent='MtCO\u2082';g.appendChild(yLab);
+
+// x axis
+for(var yr=Math.ceil(xMin/20)*20;yr<=xMax;yr+=20){
+  var x=xS(yr);
+  g.appendChild(svgEl('line',{x1:x,y1:0,x2:x,y2:iH,stroke:'#27272a','stroke-width':0.5}));
+  var xl=svgEl('text',{x:x,y:iH+20,'text-anchor':'middle',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  xl.textContent=yr;g.appendChild(xl);
+}
+
+// legend
+var lgX=iW+12,lgY=10;
+FUELS.forEach(function(f,i){
+  g.appendChild(svgEl('rect',{x:lgX,y:lgY+i*22,width:14,height:14,rx:3,fill:FUEL_COLORS[f]}));
+  var t=svgEl('text',{x:lgX+20,y:lgY+i*22+11,fill:'#a1a1aa','font-size':'11','font-family':'Inter,system-ui,sans-serif'});
+  t.textContent=FUEL_LABELS[f];g.appendChild(t);
+});
+
+// tooltip overlay
+var overlay=svgEl('rect',{x:0,y:0,width:iW,height:iH,fill:'transparent',cursor:'crosshair'});
+overlay.addEventListener('mousemove',function(e){
+  var rect=svg.getBoundingClientRect(),mx=(e.clientX-rect.left-margin.left*(rect.width/w))/(rect.width/w);
+  var yr=Math.round(xMin+mx/iW*(xMax-xMin));
+  var d=india[String(yr)];
+  if(!d)return;
+  var html='<div class="tt-title">'+yr+'</div>'+
+    '<div class="tt-row"><span class="tt-label">Total</span><span class="tt-warm">'+Math.round(d.total).toLocaleString()+' MtCO\u2082</span></div>';
+  FUELS.forEach(function(f){if(d[f]>0)html+='<div class="tt-row"><span class="tt-label">'+FUEL_LABELS[f]+'</span><span>'+Math.round(d[f])+' Mt</span></div>';});
+  html+='<div class="tt-row"><span class="tt-label">Per capita</span><span>'+d.perCapita.toFixed(2)+' t</span></div>';
+  showTT(html,e);
+});
+overlay.addEventListener('mouseleave',hideTT);
+g.appendChild(overlay);
+container.appendChild(svg);
+})();
+
+// ── CO2 vs Temperature dual axis ──
+(function(){
+var container=document.getElementById('co2-temp-container');
+var margin={top:20,right:65,bottom:40,left:65},w=1100,h=360;
+var iW=w-margin.left-margin.right,iH=h-margin.top-margin.bottom;
+var svg=svgEl('svg',{viewBox:'0 0 '+w+' '+h});svg.style.maxWidth='100%';svg.style.height='auto';
+var g=svgEl('g',{transform:'translate('+margin.left+','+margin.top+')'});svg.appendChild(g);
+
+// use national temp data
+var natRaw=NATIONAL_DATA.records;
+var annualTemp={};
+for(var i=0;i<natRaw.length;i++){var r=natRaw[i];if(!annualTemp[r.y])annualTemp[r.y]={s:0,c:0};annualTemp[r.y].s+=r.v;annualTemp[r.y].c++;}
+var tempYears=[];
+for(var y in annualTemp){if(annualTemp[y].c>=6)tempYears.push({year:+y,avg:annualTemp[y].s/annualTemp[y].c});}
+tempYears.sort(function(a,b){return a.year-b.year;});
+
+var co2Yrs=years.filter(function(y){return india[String(y)]&&india[String(y)].total>0;});
+var xMin=Math.max(co2Yrs[0],tempYears[0].year),xMax=Math.min(co2Yrs[co2Yrs.length-1],tempYears[tempYears.length-1].year);
+
+var co2Max=0;
+co2Yrs.forEach(function(y){if(y>=xMin&&y<=xMax){var t=india[String(y)].total;if(t>co2Max)co2Max=t;}});
+co2Max*=1.05;
+var tempVals=tempYears.filter(function(t){return t.year>=xMin&&t.year<=xMax;}).map(function(t){return t.avg;});
+var tempMin=Math.floor(Math.min.apply(null,tempVals)*2)/2;
+var tempMax=Math.ceil(Math.max.apply(null,tempVals)*2)/2;
+
+function xS(v){return((v-xMin)/(xMax-xMin))*iW;}
+function yL(v){return iH-(v/co2Max)*iH;} // left axis - CO2
+function yR(v){return iH-((v-tempMin)/(tempMax-tempMin))*iH;} // right axis - temp
+
+// grid
+for(var v=0;v<=co2Max;v+=500){
+  g.appendChild(svgEl('line',{x1:0,y1:yL(v),x2:iW,y2:yL(v),stroke:'#27272a','stroke-width':0.5}));
+  var lb=svgEl('text',{x:-10,y:yL(v)+4,'text-anchor':'end',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  lb.textContent=v>=1000?(v/1000).toFixed(1)+'k':v;g.appendChild(lb);
+}
+var yLab=svgEl('text',{x:-50,y:iH/2,'text-anchor':'middle',fill:'#e74c3c','font-size':'11','font-family':'Inter,system-ui,sans-serif',transform:'rotate(-90,-50,'+iH/2+')'});
+yLab.textContent='MtCO\u2082';g.appendChild(yLab);
+
+// right axis labels
+for(var v=tempMin;v<=tempMax+0.01;v+=0.5){
+  var lb2=svgEl('text',{x:iW+10,y:yR(v)+4,'text-anchor':'start',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  lb2.textContent=(v>=0?'+':'')+v.toFixed(1)+'\u00B0C';g.appendChild(lb2);
+}
+var yLab2=svgEl('text',{x:iW+55,y:iH/2,'text-anchor':'middle',fill:'#60a5fa','font-size':'11','font-family':'Inter,system-ui,sans-serif',transform:'rotate(90,'+(iW+55)+','+iH/2+')'});
+yLab2.textContent='Temp Anomaly';g.appendChild(yLab2);
+
+// x axis
+for(var yr=Math.ceil(xMin/20)*20;yr<=xMax;yr+=20){
+  var x=xS(yr);
+  g.appendChild(svgEl('line',{x1:x,y1:0,x2:x,y2:iH,stroke:'#27272a','stroke-width':0.5}));
+  var xl=svgEl('text',{x:x,y:iH+20,'text-anchor':'middle',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  xl.textContent=yr;g.appendChild(xl);
+}
+
+// CO2 area (red)
+var co2Path='M'+xS(xMin)+','+yL(0);
+co2Yrs.filter(function(y){return y>=xMin&&y<=xMax;}).forEach(function(y){
+  co2Path+='L'+xS(y)+','+yL(india[String(y)].total);
+});
+co2Path+='L'+xS(xMax)+','+yL(0)+'Z';
+g.appendChild(svgEl('path',{d:co2Path,fill:'rgba(231,76,60,0.25)',stroke:'#e74c3c','stroke-width':1.5}));
+
+// Zero line for temp
+g.appendChild(svgEl('line',{x1:0,y1:yR(0),x2:iW,y2:yR(0),stroke:'#52525b','stroke-width':1,'stroke-dasharray':'4,4'}));
+
+// Temperature line (blue) with 10yr MA
+var tempFiltered=tempYears.filter(function(t){return t.year>=xMin&&t.year<=xMax;});
+// compute 10yr MA
+var ma=[];
+for(var i=0;i<tempFiltered.length;i++){
+  var s=Math.max(0,i-5),e2=Math.min(tempFiltered.length,i+5);
+  var sl=tempFiltered.slice(s,e2),sm=0;
+  for(var j=0;j<sl.length;j++)sm+=sl[j].avg;
+  ma.push({year:tempFiltered[i].year,avg:sm/sl.length});
+}
+var tPath='';
+for(var i=0;i<ma.length;i++){
+  tPath+=(i===0?'M':'L')+xS(ma[i].year)+','+yR(ma[i].avg);
+}
+g.appendChild(svgEl('path',{d:tPath,fill:'none',stroke:'#60a5fa','stroke-width':2.5,'stroke-linejoin':'round'}));
+
+// legend
+var lg=svgEl('g',{transform:'translate(10,8)'});
+lg.appendChild(svgEl('rect',{x:0,y:0,width:16,height:10,rx:2,fill:'rgba(231,76,60,0.4)',stroke:'#e74c3c','stroke-width':1}));
+var lt1=svgEl('text',{x:22,y:9,fill:'#a1a1aa','font-size':'11','font-family':'Inter,system-ui,sans-serif'});lt1.textContent='CO\u2082 Emissions';lg.appendChild(lt1);
+lg.appendChild(svgEl('line',{x1:140,y1:5,x2:160,y2:5,stroke:'#60a5fa','stroke-width':2.5}));
+var lt2=svgEl('text',{x:166,y:9,fill:'#a1a1aa','font-size':'11','font-family':'Inter,system-ui,sans-serif'});lt2.textContent='Temperature (10yr avg)';lg.appendChild(lt2);
+g.appendChild(lg);
+
+container.appendChild(svg);
+})();
+
+// ── Per Capita comparison ──
+(function(){
+var container=document.getElementById('co2-percapita-container');
+var margin={top:20,right:120,bottom:40,left:55},w=1100,h=360;
+var iW=w-margin.left-margin.right,iH=h-margin.top-margin.bottom;
+var svg=svgEl('svg',{viewBox:'0 0 '+w+' '+h});svg.style.maxWidth='100%';svg.style.height='auto';
+var g=svgEl('g',{transform:'translate('+margin.left+','+margin.top+')'});svg.appendChild(g);
+
+var indiaPC=co2.indiaPerCapita,worldPC=co2.worldPerCapita;
+var pcYears=Object.keys(indiaPC).map(Number).filter(function(y){return worldPC[String(y)];}).sort(function(a,b){return a-b;});
+var xMin=pcYears[0],xMax=pcYears[pcYears.length-1];
+
+// Add comparison country lines from OWID comparison data
+var comp=co2.comparison;
+var compPC={};
+compPC['India']={color:'#f87171',data:{}};
+compPC['World avg']={color:'#fbbf24',data:{}};
+pcYears.forEach(function(y){
+  compPC['India'].data[y]=indiaPC[String(y)];
+  compPC['World avg'].data[y]=worldPC[String(y)];
+});
+
+// get latest values for reference lines
+var refLines=[
+  {label:'US ('+comp['United States'].perCapita+'t)',val:comp['United States'].perCapita,color:'#a855f7'},
+  {label:'China ('+comp['China'].perCapita+'t)',val:comp['China'].perCapita,color:'#ef4444'},
+  {label:'EU ('+comp['European Union (27)'].perCapita+'t)',val:comp['European Union (27)'].perCapita,color:'#3b82f6'},
+];
+
+var yMax=Math.max(comp['United States'].perCapita*1.1,16);
+function xS(v){return((v-xMin)/(xMax-xMin))*iW;}
+function yS(v){return iH-(v/yMax)*iH;}
+
+// grid
+for(var v=0;v<=yMax;v+=2){
+  g.appendChild(svgEl('line',{x1:0,y1:yS(v),x2:iW,y2:yS(v),stroke:'#27272a','stroke-width':0.5}));
+  var lb=svgEl('text',{x:-10,y:yS(v)+4,'text-anchor':'end',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  lb.textContent=v+'t';g.appendChild(lb);
+}
+var yLab=svgEl('text',{x:-42,y:iH/2,'text-anchor':'middle',fill:'#71717a','font-size':'11','font-family':'Inter,system-ui,sans-serif',transform:'rotate(-90,-42,'+iH/2+')'});
+yLab.textContent='tCO\u2082 per person';g.appendChild(yLab);
+
+// x axis
+for(var yr=Math.ceil(xMin/10)*10;yr<=xMax;yr+=10){
+  var x=xS(yr);
+  g.appendChild(svgEl('line',{x1:x,y1:0,x2:x,y2:iH,stroke:'#27272a','stroke-width':0.5}));
+  var xl=svgEl('text',{x:x,y:iH+20,'text-anchor':'middle',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  xl.textContent=yr;g.appendChild(xl);
+}
+
+// reference lines for US, China, EU (latest values as dashed horizontal)
+refLines.forEach(function(ref){
+  g.appendChild(svgEl('line',{x1:0,y1:yS(ref.val),x2:iW,y2:yS(ref.val),stroke:ref.color,'stroke-width':1,'stroke-dasharray':'6,4','stroke-opacity':'0.6'}));
+  var t=svgEl('text',{x:iW+6,y:yS(ref.val)+4,fill:ref.color,'font-size':'10','font-family':'Inter,system-ui,sans-serif','font-weight':'600'});
+  t.textContent=ref.label;g.appendChild(t);
+});
+
+// India line (filled area)
+var areaPath='M'+xS(pcYears[0])+','+yS(0);
+pcYears.forEach(function(y){areaPath+='L'+xS(y)+','+yS(indiaPC[String(y)]);});
+areaPath+='L'+xS(pcYears[pcYears.length-1])+','+yS(0)+'Z';
+g.appendChild(svgEl('path',{d:areaPath,fill:'rgba(248,113,113,0.15)'}));
+
+var linePath='';
+pcYears.forEach(function(y,i){linePath+=(i===0?'M':'L')+xS(y)+','+yS(indiaPC[String(y)]);});
+g.appendChild(svgEl('path',{d:linePath,fill:'none',stroke:'#f87171','stroke-width':2.5}));
+
+// World avg line
+var wPath='';
+pcYears.forEach(function(y,i){var v=worldPC[String(y)];if(v!=null)wPath+=(wPath?'L':'M')+xS(y)+','+yS(v);});
+g.appendChild(svgEl('path',{d:wPath,fill:'none',stroke:'#fbbf24','stroke-width':2,'stroke-dasharray':'4,3'}));
+
+// legend
+var lgX=iW+6,lgY=iH-60;
+[{label:'India',color:'#f87171'},{label:'World avg',color:'#fbbf24'}].forEach(function(item,i){
+  g.appendChild(svgEl('line',{x1:lgX,y1:lgY+i*20+6,x2:lgX+16,y2:lgY+i*20+6,stroke:item.color,'stroke-width':2.5}));
+  var t=svgEl('text',{x:lgX+22,y:lgY+i*20+10,fill:'#a1a1aa','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  t.textContent=item.label;g.appendChild(t);
+});
+
+// tooltip
+var overlay=svgEl('rect',{x:0,y:0,width:iW,height:iH,fill:'transparent',cursor:'crosshair'});
+overlay.addEventListener('mousemove',function(e){
+  var rect=svg.getBoundingClientRect(),mx=(e.clientX-rect.left-margin.left*(rect.width/w))/(rect.width/w);
+  var yr=Math.round(xMin+mx/iW*(xMax-xMin));
+  var ip=indiaPC[String(yr)],wp=worldPC[String(yr)];
+  if(!ip)return;
+  showTT('<div class="tt-title">'+yr+'</div>'+
+    '<div class="tt-row"><span class="tt-label">India</span><span class="tt-warm">'+ip.toFixed(2)+' tCO\u2082</span></div>'+
+    (wp?'<div class="tt-row"><span class="tt-label">World avg</span><span>'+wp.toFixed(2)+' tCO\u2082</span></div>':'')+
+    '<div class="tt-row"><span class="tt-label">US (2024)</span><span>'+comp['United States'].perCapita+' t</span></div>'+
+    '<div class="tt-row"><span class="tt-label">China (2024)</span><span>'+comp['China'].perCapita+' t</span></div>',e);
+});
+overlay.addEventListener('mouseleave',hideTT);
+g.appendChild(overlay);
+container.appendChild(svg);
+})();
+
+// ── India's Share of Global Emissions ──
+(function(){
+var container=document.getElementById('co2-share-container');
+var margin={top:20,right:30,bottom:40,left:55},w=1100,h=300;
+var iW=w-margin.left-margin.right,iH=h-margin.top-margin.bottom;
+var svg=svgEl('svg',{viewBox:'0 0 '+w+' '+h});svg.style.maxWidth='100%';svg.style.height='auto';
+var g=svgEl('g',{transform:'translate('+margin.left+','+margin.top+')'});svg.appendChild(g);
+
+var shareData=co2.indiaShare;
+var sYears=Object.keys(shareData).map(Number).sort(function(a,b){return a-b;});
+var xMin=sYears[0],xMax=sYears[sYears.length-1];
+var yMax=Math.ceil(Math.max.apply(null,sYears.map(function(y){return shareData[String(y)];}))*1.2);
+if(yMax<10)yMax=10;
+
+function xS(v){return((v-xMin)/(xMax-xMin))*iW;}
+function yS(v){return iH-(v/yMax)*iH;}
+
+// grid
+for(var v=0;v<=yMax;v+=2){
+  g.appendChild(svgEl('line',{x1:0,y1:yS(v),x2:iW,y2:yS(v),stroke:'#27272a','stroke-width':0.5}));
+  var lb=svgEl('text',{x:-10,y:yS(v)+4,'text-anchor':'end',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  lb.textContent=v+'%';g.appendChild(lb);
+}
+// x axis
+for(var yr=Math.ceil(xMin/10)*10;yr<=xMax;yr+=10){
+  var x=xS(yr);
+  g.appendChild(svgEl('line',{x1:x,y1:0,x2:x,y2:iH,stroke:'#27272a','stroke-width':0.5}));
+  var xl=svgEl('text',{x:x,y:iH+20,'text-anchor':'middle',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});
+  xl.textContent=yr;g.appendChild(xl);
+}
+
+// area
+var aPath='M'+xS(sYears[0])+','+yS(0);
+sYears.forEach(function(y){aPath+='L'+xS(y)+','+yS(shareData[String(y)]);});
+aPath+='L'+xS(sYears[sYears.length-1])+','+yS(0)+'Z';
+g.appendChild(svgEl('path',{d:aPath,fill:'rgba(251,191,36,0.2)'}));
+
+var lPath='';
+sYears.forEach(function(y,i){lPath+=(i===0?'M':'L')+xS(y)+','+yS(shareData[String(y)]);});
+g.appendChild(svgEl('path',{d:lPath,fill:'none',stroke:'#fbbf24','stroke-width':2.5}));
+
+// tooltip
+var overlay=svgEl('rect',{x:0,y:0,width:iW,height:iH,fill:'transparent',cursor:'crosshair'});
+overlay.addEventListener('mousemove',function(e){
+  var rect=svg.getBoundingClientRect(),mx=(e.clientX-rect.left-margin.left*(rect.width/w))/(rect.width/w);
+  var yr=Math.round(xMin+mx/iW*(xMax-xMin));
+  var sh=shareData[String(yr)];
+  if(!sh)return;
+  showTT('<div class="tt-title">'+yr+'</div><div class="tt-row"><span class="tt-label">India\'s share</span><span class="tt-warm">'+sh.toFixed(2)+'%</span></div>',e);
+});
+overlay.addEventListener('mouseleave',hideTT);
+g.appendChild(overlay);
+container.appendChild(svg);
+})();
+
+// ── Cumulative Emissions Bar Chart ──
+(function(){
+var container=document.getElementById('co2-cumulative-container');
+var margin={top:20,right:30,bottom:60,left:65},w=700,h=380;
+var iW=w-margin.left-margin.right,iH=h-margin.top-margin.bottom;
+var svg=svgEl('svg',{viewBox:'0 0 '+w+' '+h});svg.style.maxWidth='100%';svg.style.height='auto';
+var g=svgEl('g',{transform:'translate('+margin.left+','+margin.top+')'});svg.appendChild(g);
+
+var comp=co2.comparison;
+var countries=[
+  {name:'United States',short:'US',color:'#a855f7'},
+  {name:'European Union (27)',short:'EU-27',color:'#3b82f6'},
+  {name:'China',short:'China',color:'#ef4444'},
+  {name:'Russia',short:'Russia',color:'#22c55e'},
+  {name:'Japan',short:'Japan',color:'#f97316'},
+  {name:'India',short:'India',color:'#f87171'},
+];
+
+var bars=countries.map(function(c){return{name:c.short,val:comp[c.name].cumulative/1000,color:c.color,pc:comp[c.name].perCapita};});
+bars.sort(function(a,b){return b.val-a.val;});
+
+var xMax=bars[0].val*1.1;
+var barH=iH/bars.length*0.65;
+var gap=iH/bars.length*0.35;
+
+bars.forEach(function(b,i){
+  var y=i*(barH+gap);
+  var bw=(b.val/xMax)*iW;
+  g.appendChild(svgEl('rect',{x:0,y:y,width:bw,height:barH,rx:6,fill:b.color,opacity:b.name==='India'?'1':'0.7'}));
+  // label
+  var lab=svgEl('text',{x:-8,y:y+barH/2+5,'text-anchor':'end',fill:b.name==='India'?'#f87171':'#a1a1aa','font-size':'13','font-weight':b.name==='India'?'700':'500','font-family':'Inter,system-ui,sans-serif'});
+  lab.textContent=b.name;g.appendChild(lab);
+  // value
+  var vt=svgEl('text',{x:bw+8,y:y+barH/2+5,fill:'#e4e4e7','font-size':'12','font-weight':'600','font-family':'Inter,system-ui,sans-serif'});
+  vt.textContent=Math.round(b.val).toLocaleString()+' GtCO\u2082';g.appendChild(vt);
+});
+
+// x axis label
+var xl=svgEl('text',{x:iW/2,y:iH+30,'text-anchor':'middle',fill:'#71717a','font-size':'11','font-family':'Inter,system-ui,sans-serif'});
+xl.textContent='Cumulative CO\u2082 emissions (GtCO\u2082, all time through 2024)';g.appendChild(xl);
+
+container.appendChild(svg);
+})();
+
+})();
+
 })();
 </script>
 </body>
