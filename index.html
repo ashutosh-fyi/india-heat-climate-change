@@ -96,8 +96,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
     <div class="year-sub">Temperature anomaly vs 1961-1990 baseline</div>
     <div class="national-anomaly" id="national-anomaly"></div>
   </div>
-  <div class="map-section"><div class="chart-box" style="padding:20px"><div class="map-svg-wrap" id="map-svg-wrap"></div></div></div>
-  <div class="controls-box">
+  <div class="controls-box" style="margin-bottom:16px">
     <div class="slider-row"><input type="range" id="year-slider" min="0" max="73" value="0" step="1"></div>
     <div class="slider-labels"><span id="slider-min">1951</span><span id="slider-max">2024</span></div>
     <div class="btn-row">
@@ -106,6 +105,7 @@ body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,Bl
       <div class="speed-ctrl"><label for="speed-slider">Speed</label><input type="range" id="speed-slider" min="1" max="10" value="4" step="1"><span class="speed-val" id="speed-val">4x</span></div>
     </div>
   </div>
+  <div class="map-section"><div class="chart-box" style="padding:20px"><div class="map-svg-wrap" id="map-svg-wrap"></div></div></div>
   <div style="max-width:900px;margin:16px auto 32px;text-align:center">
     <div style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Temperature Anomaly (deg C)</div>
     <div style="display:flex;align-items:center;gap:8px;justify-content:center">
