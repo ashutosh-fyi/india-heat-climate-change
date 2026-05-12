@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>India Is Getting Hotter — 200 Years of Temperature Data</title>
+<meta name="description" content="Interactive visualization of India's rising temperatures from 1817 to 2024. National heatmaps, warming stripes, and an animated state-level choropleth map.">
+<style>
+:root{--bg:#0f1117;--surface:#1a1d27;--text:#e4e4e7;--muted:#71717a;--border:#27272a}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;line-height:1.6}
+.tab-nav{display:flex;justify-content:center;gap:4px;padding:16px 24px 0;max-width:700px;margin:0 auto;position:sticky;top:0;z-index:50;background:var(--bg);padding-bottom:12px}
+.tab-btn{background:transparent;border:1px solid var(--border);color:var(--muted);border-radius:8px;padding:8px 20px;font-size:.85rem;font-weight:600;cursor:pointer;font-family:inherit;transition:all .15s}
+.tab-btn:hover{color:var(--text);border-color:#444}
+.tab-btn.active{background:var(--surface);color:var(--text);border-color:#60a5fa}
+.tab-content{display:none}.tab-content.active{display:block}
+.hero{text-align:center;padding:40px 24px 32px;max-width:800px;margin:0 auto}
+.hero h1{font-size:2.6rem;font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:12px;background:linear-gradient(135deg,#60a5fa,#f87171);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:1.05rem;color:var(--muted);max-width:620px;margin:0 auto}
+.stats-bar{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;padding:0 24px 32px;max-width:900px;margin:0 auto}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 22px;min-width:150px;text-align:center}
+.stat .value{font-size:1.7rem;font-weight:700;font-variant-numeric:tabular-nums}
+.stat .value.warm{color:#f87171}.stat .value.cool{color:#60a5fa}.stat .value.neutral{color:#fbbf24}
+.stat .label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:4px}
+.section{max-width:1200px;margin:0 auto;padding:0 24px 48px}
+.section h2{font-size:1.3rem;font-weight:700;margin-bottom:6px}
+.section .subtitle{font-size:.88rem;color:var(--muted);margin-bottom:16px}
+.chart-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:24px;overflow-x:auto}
+.legend{display:flex;align-items:center;gap:8px;margin-top:14px;justify-content:center;font-size:.8rem;color:var(--muted)}
+.tooltip{position:fixed;pointer-events:none;background:rgba(15,17,23,.95);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:.85rem;line-height:1.5;z-index:100;opacity:0;transition:opacity .15s;backdrop-filter:blur(8px);box-shadow:0 8px 32px rgba(0,0,0,.4);max-width:280px}
+.tooltip.visible{opacity:1}
+.tooltip .tt-title{font-weight:700;margin-bottom:4px}
+.tooltip .tt-warm{color:#f87171;font-weight:600}.tooltip .tt-cool{color:#60a5fa;font-weight:600}
+.tooltip .tt-row{display:flex;justify-content:space-between;gap:16px}
+.tooltip .tt-label{color:var(--muted)}
+.year-display{text-align:center;padding:16px 0 8px}
+.year-value{font-size:3rem;font-weight:800;font-variant-numeric:tabular-nums;letter-spacing:-.02em;transition:color .3s}
+.year-sub{font-size:.85rem;color:var(--muted);margin-top:-4px}
+.national-anomaly{font-size:1.05rem;font-weight:600;margin-top:4px}
+.map-section{max-width:900px;margin:0 auto;padding:0 24px 16px}
+.map-svg-wrap{width:100%;max-width:600px;margin:0 auto}
+.map-svg-wrap svg{width:100%;height:auto;display:block}
+.state-path{stroke:var(--border);stroke-width:.5;cursor:pointer;transition:fill .25s,stroke-width .15s}
+.state-path:hover{stroke:#fff;stroke-width:1.5;filter:brightness(1.15)}
+.state-label{fill:rgba(228,228,231,.7);font-size:5.5px;font-weight:500;text-anchor:middle;pointer-events:none;paint-order:stroke;stroke:rgba(15,17,23,.6);stroke-width:1.5px;stroke-linejoin:round}
+.controls-box{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px 22px;max-width:900px;margin:8px auto 0}
+.slider-row{display:flex;align-items:center;gap:14px;margin-bottom:10px}
+.slider-row input[type="range"]{flex:1;-webkit-appearance:none;height:6px;border-radius:3px;background:var(--border);outline:none;cursor:pointer}
+.slider-row input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#60a5fa;cursor:pointer;border:2px solid var(--surface);box-shadow:0 0 6px rgba(96,165,250,.5)}
+.slider-labels{display:flex;justify-content:space-between;font-size:.75rem;color:var(--muted);padding:0 2px;margin-bottom:10px}
+.btn-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.btn{background:var(--border);border:1px solid rgba(255,255,255,.1);color:var(--text);border-radius:8px;padding:7px 16px;font-size:.85rem;font-weight:600;cursor:pointer;transition:background .15s;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+.btn:hover{background:#333}
+.btn.playing{background:rgba(96,165,250,.2);border-color:rgba(96,165,250,.4);color:#60a5fa}
+.speed-ctrl{display:flex;align-items:center;gap:8px;margin-left:auto}
+.speed-ctrl label{font-size:.8rem;color:var(--muted);white-space:nowrap}
+.speed-ctrl input[type="range"]{width:80px;-webkit-appearance:none;height:4px;border-radius:2px;background:var(--border);outline:none;cursor:pointer}
+.speed-ctrl input[type="range"]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;background:var(--muted);cursor:pointer}
+.speed-val{font-size:.75rem;color:var(--muted);font-variant-numeric:tabular-nums;min-width:28px;text-align:right}
+.cell:hover{stroke:#fff;stroke-width:1.5px}
+.footer{text-align:center;padding:32px 24px;color:var(--muted);font-size:.8rem;border-top:1px solid var(--border);margin-top:24px}
+.footer a{color:#60a5fa;text-decoration:none}.footer a:hover{text-decoration:underline}
+@media(max-width:640px){.hero h1{font-size:1.8rem}.hero p{font-size:.9rem}.stat{min-width:120px;padding:10px 14px}.stat .value{font-size:1.3rem}.year-value{font-size:2.2rem}.tab-btn{padding:6px 14px;font-size:.78rem}.state-label{font-size:4.5px}.speed-ctrl{margin-left:0;width:100%}}
+</style>
+</head>
+<body>
+<div class="hero">
+  <h1>India Is Getting Hotter</h1>
+  <p>200+ years of temperature data reveal a clear and accelerating warming trend across the subcontinent.</p>
+</div>
+<nav class="tab-nav">
+  <button class="tab-btn active" data-tab="national">National Overview</button>
+  <button class="tab-btn" data-tab="statemap">State Map</button>
+</nav>
+
+<!-- TAB 1: NATIONAL -->
+<div class="tab-content active" id="tab-national">
+  <div class="stats-bar" id="stats-bar"></div>
+  <div class="section"><h2>Warming Stripes</h2><p class="subtitle">Each stripe is one year. Blue = cooler than baseline, red = warmer.</p>
+    <div class="chart-box"><div id="stripes-container"></div>
+      <div class="legend"><span>-1.5 C</span><canvas id="legend-bar" width="200" height="12" style="width:200px;height:12px;border-radius:6px"></canvas><span>+1.5 C</span></div>
+    </div>
+  </div>
+  <div class="section"><h2>Monthly Temperature Heatmap</h2><p class="subtitle">Every cell is one month. Hover for exact values. Rightmost column is the annual average.</p>
+    <div class="chart-box"><div id="heatmap-container"></div></div>
+  </div>
+  <div class="section"><h2>Annual Trend</h2><p class="subtitle">Annual mean anomaly with a 10-year moving average trendline.</p>
+    <div class="chart-box"><div id="trend-container"></div></div>
+  </div>
+</div>
+
+<!-- TAB 2: STATE MAP -->
+<div class="tab-content" id="tab-statemap">
+  <div class="year-display">
+    <div class="year-value" id="year-value">1951</div>
+    <div class="year-sub">Temperature anomaly vs 1961-1990 baseline</div>
+    <div class="national-anomaly" id="national-anomaly"></div>
+  </div>
+  <div class="map-section"><div class="chart-box" style="padding:20px"><div class="map-svg-wrap" id="map-svg-wrap"></div></div></div>
+  <div class="controls-box">
+    <div class="slider-row"><input type="range" id="year-slider" min="0" max="73" value="0" step="1"></div>
+    <div class="slider-labels"><span id="slider-min">1951</span><span id="slider-max">2024</span></div>
+    <div class="btn-row">
+      <button class="btn" id="play-btn"><span id="play-icon">&#9654;</span> <span id="play-label">Play</span></button>
+      <button class="btn" id="reset-btn">&#8634; Reset</button>
+      <div class="speed-ctrl"><label for="speed-slider">Speed</label><input type="range" id="speed-slider" min="1" max="10" value="4" step="1"><span class="speed-val" id="speed-val">4x</span></div>
+    </div>
+  </div>
+  <div style="max-width:900px;margin:16px auto 32px;text-align:center">
+    <div style="font-size:.78rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px">Temperature Anomaly (deg C)</div>
+    <div style="display:flex;align-items:center;gap:8px;justify-content:center">
+      <span style="font-size:.78rem;color:var(--muted);font-weight:600">-2</span>
+      <canvas id="map-legend-canvas" width="280" height="14" style="width:280px;height:14px;border-radius:7px;border:1px solid var(--border)"></canvas>
+      <span style="font-size:.78rem;color:var(--muted);font-weight:600">+2</span>
+    </div>
+  </div>
+</div>
+
+<div class="footer">
+  Data: <a href="https://berkeleyearth.org/" target="_blank">Berkeley Earth</a> (national) &amp;
+  <a href="https://open-meteo.com/" target="_blank">Open-Meteo ERA5</a> (state-level)
+  &bull; Baseline: 1951-1980 (national), 1961-1990 (states)
+</div>
+<div class="tooltip" id="tooltip"></div>
+
+<script src="national_data_var.js"></script>
+<script src="state_data_var.js"></script>
+<script>
+(function(){
+'use strict';
+var COLORS=['#2166ac','#4393c3','#92c5de','#d1e5f0','#f7f7f7','#fddbc7','#f4a582','#d6604d','#b2182b'];
+var MONTHS=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+var svgNS='http://www.w3.org/2000/svg';
+function interpColor(t){t=Math.max(0,Math.min(1,t));var n=COLORS.length-1,i=Math.min(Math.floor(t*n),n-1),f=t*n-i;var a=COLORS[i],b=COLORS[i+1];var ar=parseInt(a.slice(1,3),16),ag=parseInt(a.slice(3,5),16),ab=parseInt(a.slice(5,7),16);var br=parseInt(b.slice(1,3),16),bg=parseInt(b.slice(3,5),16),bb=parseInt(b.slice(5,7),16);return'rgb('+Math.round(ar+(br-ar)*f)+','+Math.round(ag+(bg-ag)*f)+','+Math.round(ab+(bb-ab)*f)+')';}
+function anomColor(v,vmax){return interpColor((v+vmax)/(2*vmax));}
+var ttEl=document.getElementById('tooltip');
+function showTT(html,e){ttEl.innerHTML=html;ttEl.classList.add('visible');var x=e.clientX+14,y=e.clientY+14,r=ttEl.getBoundingClientRect();if(x+r.width>window.innerWidth)x=e.clientX-r.width-14;if(y+r.height>window.innerHeight)y=e.clientY-r.height-14;ttEl.style.left=x+'px';ttEl.style.top=y+'px';}
+function hideTT(){ttEl.classList.remove('visible');}
+function svgEl(tag,a){var el=document.createElementNS(svgNS,tag);for(var k in a)el.setAttribute(k,a[k]);return el;}
+
+// Tabs
+document.querySelectorAll('.tab-btn').forEach(function(btn){btn.addEventListener('click',function(){document.querySelectorAll('.tab-btn').forEach(function(b){b.classList.remove('active');});btn.classList.add('active');document.querySelectorAll('.tab-content').forEach(function(c){c.classList.remove('active');});document.getElementById('tab-'+btn.getAttribute('data-tab')).classList.add('active');});});
+
+// ═══ NATIONAL ═══
+(function(){
+var raw=NATIONAL_DATA,records=raw.records,baseline=raw.baseline;
+var yearMap={};for(var i=0;i<records.length;i++){var r=records[i];if(!yearMap[r.y])yearMap[r.y]={};yearMap[r.y][r.m]=r.v;}
+var years=Object.keys(yearMap).map(Number).sort(function(a,b){return a-b;});
+var annuals=years.map(function(y){var m=yearMap[y],s=0,c=0;for(var k in m){s+=m[k];c++;}return{year:y,avg:s/c};});
+var coolest=annuals.reduce(function(a,b){return a.avg<b.avg?a:b;});
+var warmest=annuals.reduce(function(a,b){return a.avg>b.avg?a:b;});
+var recent=annuals.filter(function(a){return a.year>=2010;}),recentAvg=recent.reduce(function(s,a){return s+a.avg;},0)/recent.length;
+var early=annuals.filter(function(a){return a.year<=1950;}),earlyAvg=early.reduce(function(s,a){return s+a.avg;},0)/early.length;
+var warming=recentAvg-earlyAvg;
+document.getElementById('stats-bar').innerHTML='<div class="stat"><div class="value neutral">'+years.length+'</div><div class="label">Years of data</div></div><div class="stat"><div class="value cool">'+coolest.year+'</div><div class="label">Coolest year ('+coolest.avg.toFixed(2)+'\u00B0C)</div></div><div class="stat"><div class="value warm">'+warmest.year+'</div><div class="label">Warmest year (+'+warmest.avg.toFixed(2)+'\u00B0C)</div></div><div class="stat"><div class="value warm">+'+warming.toFixed(2)+'\u00B0C</div><div class="label">Warming since pre-1950</div></div>';
+
+// Stripes
+(function(){var c=document.getElementById('stripes-container'),vmax=1.5,cv=document.createElement('canvas'),w=c.clientWidth||1100,h=100;cv.width=w*2;cv.height=h*2;cv.style.width='100%';cv.style.height=h+'px';cv.style.borderRadius='8px';cv.style.cursor='crosshair';var ctx=cv.getContext('2d');ctx.scale(2,2);var bw=w/annuals.length;for(var i=0;i<annuals.length;i++){ctx.fillStyle=anomColor(annuals[i].avg,vmax);ctx.fillRect(i*bw,0,bw+.5,h);}
+cv.addEventListener('mousemove',function(e){var rect=cv.getBoundingClientRect(),x=e.clientX-rect.left,idx=Math.floor(x/(rect.width/annuals.length));if(idx>=0&&idx<annuals.length){var a=annuals[idx],cls=a.avg>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+a.year+'</div><span class="'+cls+'">'+(a.avg>=0?'+':'')+a.avg.toFixed(3)+'\u00B0C</span>',e);}});
+cv.addEventListener('mouseleave',hideTT);c.appendChild(cv);
+var lc=document.getElementById('legend-bar').getContext('2d');for(var x=0;x<200;x++){lc.fillStyle=anomColor(-1.5+(3*x/200),1.5);lc.fillRect(x,0,1,12);}})();
+
+// Heatmap
+(function(){var container=document.getElementById('heatmap-container'),cols=MONTHS.concat(['Annual']),cellW=72,cellH=16,labelW=52,topH=28,totalW=labelW+cols.length*cellW,totalH=topH+years.length*cellH,vmax=3.5;
+var svg=svgEl('svg',{viewBox:'0 0 '+totalW+' '+totalH,width:totalW});svg.style.maxWidth='100%';svg.style.height='auto';
+for(var ci=0;ci<cols.length;ci++){var t=svgEl('text',{x:labelW+ci*cellW+cellW/2,y:topH-8,'text-anchor':'middle',fill:ci===12?'#fbbf24':'#a1a1aa','font-size':'11','font-weight':'600','font-family':'Inter,system-ui,sans-serif'});t.textContent=cols[ci];svg.appendChild(t);}
+for(var ri=0;ri<years.length;ri++){var year=years[ri];if(year%5===0){var l=svgEl('text',{x:labelW-6,y:topH+ri*cellH+cellH/2+4,'text-anchor':'end',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});l.textContent=year;svg.appendChild(l);}
+if(year%10===0)svg.appendChild(svgEl('line',{x1:labelW,y1:topH+ri*cellH,x2:labelW+12*cellW,y2:topH+ri*cellH,stroke:'#3f3f46','stroke-width':0.5}));
+var months=yearMap[year];for(var mi=0;mi<12;mi++){var v=months[mi+1];if(v===undefined)continue;var rect=svgEl('rect',{x:labelW+mi*cellW,y:topH+ri*cellH,width:cellW-1,height:cellH-1,rx:2,fill:anomColor(v,vmax),'class':'cell'});
+(function(mi,year,v){var absT=(baseline[mi]+v).toFixed(1);rect.addEventListener('mouseenter',function(e){var cls=v>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+MONTHS[mi]+' '+year+'</div>Anomaly: <span class="'+cls+'">'+(v>=0?'+':'')+v.toFixed(3)+'\u00B0C</span><br>Estimated: '+absT+'\u00B0C',e);});rect.addEventListener('mousemove',function(e){var cls=v>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+MONTHS[mi]+' '+year+'</div>Anomaly: <span class="'+cls+'">'+(v>=0?'+':'')+v.toFixed(3)+'\u00B0C</span><br>Estimated: '+absT+'\u00B0C',e);});rect.addEventListener('mouseleave',hideTT);})(mi,year,v);svg.appendChild(rect);}
+var ann=annuals[ri];if(ann){var ar=svgEl('rect',{x:labelW+12*cellW,y:topH+ri*cellH,width:cellW-1,height:cellH-1,rx:2,fill:anomColor(ann.avg,vmax),'class':'cell'});(function(ann){ar.addEventListener('mouseenter',function(e){var cls=ann.avg>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+ann.year+' Annual</div><span class="'+cls+'">'+(ann.avg>=0?'+':'')+ann.avg.toFixed(3)+'\u00B0C</span>',e);});ar.addEventListener('mousemove',function(e){var cls=ann.avg>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+ann.year+' Annual</div><span class="'+cls+'">'+(ann.avg>=0?'+':'')+ann.avg.toFixed(3)+'\u00B0C</span>',e);});ar.addEventListener('mouseleave',hideTT);})(ann);svg.appendChild(ar);}}
+svg.appendChild(svgEl('line',{x1:labelW+12*cellW-2,y1:topH,x2:labelW+12*cellW-2,y2:topH+years.length*cellH,stroke:'#fbbf24','stroke-width':1,'stroke-opacity':0.4}));container.appendChild(svg);})();
+
+// Trend
+(function(){var container=document.getElementById('trend-container'),margin={top:20,right:30,bottom:40,left:55},w=1100,h=340,iW=w-margin.left-margin.right,iH=h-margin.top-margin.bottom;
+var svg=svgEl('svg',{viewBox:'0 0 '+w+' '+h});svg.style.maxWidth='100%';svg.style.height='auto';var g=svgEl('g',{transform:'translate('+margin.left+','+margin.top+')'});svg.appendChild(g);
+var xMin=annuals[0].year,xMax=annuals[annuals.length-1].year,yVals=annuals.map(function(a){return a.avg;}),yMin=Math.floor(Math.min.apply(null,yVals)*2)/2,yMax=Math.ceil(Math.max.apply(null,yVals)*2)/2;
+function xS(v){return((v-xMin)/(xMax-xMin))*iW;}function yS(v){return iH-((v-yMin)/(yMax-yMin))*iH;}
+for(var v=yMin;v<=yMax+.01;v+=0.5){var y=yS(v);g.appendChild(svgEl('line',{x1:0,y1:y,x2:iW,y2:y,stroke:'#27272a','stroke-width':0.5}));var lb=svgEl('text',{x:-10,y:y+4,'text-anchor':'end',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});lb.textContent=(v>=0?'+':'')+v.toFixed(1)+'\u00B0C';g.appendChild(lb);}
+g.appendChild(svgEl('line',{x1:0,y1:yS(0),x2:iW,y2:yS(0),stroke:'#52525b','stroke-width':1,'stroke-dasharray':'4,4'}));
+for(var yr=Math.ceil(xMin/20)*20;yr<=xMax;yr+=20){var x=xS(yr);g.appendChild(svgEl('line',{x1:x,y1:0,x2:x,y2:iH,stroke:'#27272a','stroke-width':0.5}));var xl=svgEl('text',{x:x,y:iH+20,'text-anchor':'middle',fill:'#71717a','font-size':'10','font-family':'Inter,system-ui,sans-serif'});xl.textContent=yr;g.appendChild(xl);}
+var bW=Math.max(iW/annuals.length-1,2);for(var i=0;i<annuals.length;i++){var a=annuals[i],bx=xS(a.year)-bW/2,y0=yS(0),yv=yS(a.avg),bh=Math.abs(yv-y0);var rect=svgEl('rect',{x:bx,y:Math.min(y0,yv),width:bW,height:bh,fill:anomColor(a.avg,1.5),opacity:0.7,rx:1,'class':'cell'});
+(function(a){rect.addEventListener('mouseenter',function(e){var cls=a.avg>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+a.year+'</div><span class="'+cls+'">'+(a.avg>=0?'+':'')+a.avg.toFixed(3)+'\u00B0C</span>',e);});rect.addEventListener('mousemove',function(e){var cls=a.avg>=0?'tt-warm':'tt-cool';showTT('<div class="tt-title">'+a.year+'</div><span class="'+cls+'">'+(a.avg>=0?'+':'')+a.avg.toFixed(3)+'\u00B0C</span>',e);});rect.addEventListener('mouseleave',hideTT);})(a);g.appendChild(rect);}
+var ma=[];for(var i=0;i<annuals.length;i++){var s=Math.max(0,i-5),e2=Math.min(annuals.length,i+5),sl=annuals.slice(s,e2),sm=0;for(var j=0;j<sl.length;j++)sm+=sl[j].avg;ma.push({year:annuals[i].year,avg:sm/sl.length});}
+var pD='';for(var i=0;i<ma.length;i++)pD+=(i===0?'M':'L')+xS(ma[i].year)+','+yS(ma[i].avg);g.appendChild(svgEl('path',{d:pD,fill:'none',stroke:'#fbbf24','stroke-width':2.5,'stroke-linejoin':'round'}));
+var lg=svgEl('g',{transform:'translate('+(iW-180)+',8)'});lg.appendChild(svgEl('line',{x1:0,y1:6,x2:20,y2:6,stroke:'#fbbf24','stroke-width':2.5}));var lt=svgEl('text',{x:26,y:10,fill:'#a1a1aa','font-size':'11','font-family':'Inter,system-ui,sans-serif'});lt.textContent='10-year moving avg';lg.appendChild(lt);g.appendChild(lg);container.appendChild(svg);})();
+})();
+
+// ═══ STATE MAP ═══
+(function(){
+var data=STATE_DATA,years=data.years,states=data.states;
+function mapColor(v){if(v==null||isNaN(v))return'#333';return interpColor((v+2)/4);}
+var LABELS=['Rajasthan','Madhya Pradesh','Maharashtra','Uttar Pradesh','Gujarat','Karnataka','Andhra Pradesh','Tamil Nadu','Orissa','Chhattisgarh','Jharkhand','Bihar','West Bengal','Kerala','Punjab','Haryana','Himachal Pradesh','Jammu and Kashmir','Arunachal Pradesh','Assam','Meghalaya','Uttaranchal'];
+var ABBR={'Jammu and Kashmir':'J&K','Himachal Pradesh':'HP','Arunachal Pradesh':'Arunachal','Uttaranchal':"U'khand",'Andhra Pradesh':'AP','Madhya Pradesh':'MP','Uttar Pradesh':'UP','Chhattisgarh':'CG','West Bengal':'WB','Tamil Nadu':'TN','Maharashtra':'MH','Karnataka':'KA','Rajasthan':'RJ','Gujarat':'GJ','Jharkhand':'JH','Haryana':'HR','Punjab':'PB','Meghalaya':'ML','Assam':'AS'};
+var svg=svgEl('svg',{viewBox:data.viewBox,preserveAspectRatio:'xMidYMid meet'});svg.style.width='100%';svg.style.height='auto';
+var pg=svgEl('g',{});svg.appendChild(pg);var lg2=svgEl('g',{});svg.appendChild(lg2);
+var pathEls=[];
+states.forEach(function(st,i){var p=svgEl('path',{d:st.path,'class':'state-path','data-index':i,fill:'#333'});pg.appendChild(p);pathEls.push(p);
+if(LABELS.indexOf(st.name)!==-1){var t=svgEl('text',{x:st.cx,y:st.cy,'class':'state-label'});t.textContent=ABBR[st.name]||st.name;lg2.appendChild(t);}});
+document.getElementById('map-svg-wrap').appendChild(svg);
+var slider=document.getElementById('year-slider');slider.min=0;slider.max=years.length-1;slider.value=0;
+document.getElementById('slider-min').textContent=years[0];document.getElementById('slider-max').textContent=years[years.length-1];
+var yvEl=document.getElementById('year-value'),naEl=document.getElementById('national-anomaly');
+function updateMap(idx){var yr=years[idx],ys=String(yr);yvEl.textContent=yr;var sum=0,cnt=0;states.forEach(function(st,i){var a=st.anomalies[ys];pathEls[i].setAttribute('fill',mapColor(a));if(a!=null&&!isNaN(a)){sum+=a;cnt++;}});
+var na=cnt>0?sum/cnt:null;if(na!=null){var cls=na>=0?'tt-warm':'tt-cool';naEl.innerHTML='National avg: <span class="'+cls+'">'+(na>=0?'+':'')+na.toFixed(2)+'\u00B0C</span>';yvEl.style.color=mapColor(na);}else{naEl.textContent='';yvEl.style.color='';}}
+slider.addEventListener('input',function(){updateMap(+this.value);});
+var playing=false,timer=null,playBtn=document.getElementById('play-btn'),playIcon=document.getElementById('play-icon'),playLbl=document.getElementById('play-label'),speedSlider=document.getElementById('speed-slider'),speedVal=document.getElementById('speed-val');
+function getInt(){return Math.round(1100-parseInt(speedSlider.value)*105);}
+speedSlider.addEventListener('input',function(){speedVal.textContent=this.value+'x';if(playing){clearInterval(timer);timer=setInterval(tick,getInt());}});
+function tick(){var i=+slider.value;if(i>=years.length-1){stop();return;}slider.value=++i;updateMap(i);}
+function start(){playing=true;playBtn.classList.add('playing');playIcon.innerHTML='&#10074;&#10074;';playLbl.textContent='Pause';if(+slider.value>=years.length-1){slider.value=0;updateMap(0);}timer=setInterval(tick,getInt());}
+function stop(){playing=false;playBtn.classList.remove('playing');playIcon.innerHTML='&#9654;';playLbl.textContent='Play';clearInterval(timer);timer=null;}
+playBtn.addEventListener('click',function(){playing?stop():start();});
+document.getElementById('reset-btn').addEventListener('click',function(){stop();slider.value=0;updateMap(0);});
+pg.addEventListener('mousemove',function(e){var t=e.target;if(!t.classList.contains('state-path'))return;var st=states[+t.getAttribute('data-index')],yr=years[+slider.value],ys=String(yr),a=st.anomalies[ys],tmp=st.temps[ys],cls=a!=null&&a>=0?'tt-warm':a!=null?'tt-cool':'',aStr=a!=null?(a>=0?'+':'')+a.toFixed(2)+'\u00B0C':'N/A',tStr=tmp!=null?tmp.toFixed(1)+'\u00B0C':'N/A';showTT('<div class="tt-title">'+st.name+'</div><div class="tt-row"><span class="tt-label">Year</span><span>'+yr+'</span></div><div class="tt-row"><span class="tt-label">Anomaly</span><span class="'+cls+'">'+aStr+'</span></div><div class="tt-row"><span class="tt-label">Abs. Temp</span><span>'+tStr+'</span></div>',e);});
+pg.addEventListener('mouseleave',hideTT);
+document.addEventListener('keydown',function(e){if(document.getElementById('tab-statemap').classList.contains('active')){if(e.key===' '){e.preventDefault();playing?stop():start();}else if(e.key==='ArrowRight'){e.preventDefault();var i=Math.min(+slider.value+1,years.length-1);slider.value=i;updateMap(i);}else if(e.key==='ArrowLeft'){e.preventDefault();var i2=Math.max(+slider.value-1,0);slider.value=i2;updateMap(i2);}}});
+var mc=document.getElementById('map-legend-canvas').getContext('2d'),gr=mc.createLinearGradient(0,0,280,0);for(var i=0;i<COLORS.length;i++)gr.addColorStop(i/(COLORS.length-1),COLORS[i]);mc.fillStyle=gr;mc.fillRect(0,0,280,14);
+updateMap(0);
+})();
+})();
+</script>
+</body>
+</html>
